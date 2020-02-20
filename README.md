@@ -10,6 +10,26 @@ An utility to backup and restore [docker volumes](https://docs.docker.com/engine
 
 ## Backup
 
+```bash
+docker run -v [volume-name]:/volume -v [backup-dir]:/backup --rm vbackup:1.0 backup
+```
+
 ## Restore
 
-## 
+```bash
+docker run -v [volume-name]:/volume -v [backup-dir]:/backup --rm vbackup:1.0 restore -o "-r 10D"
+```
+
+## Remote (For removing old files in your backups)
+
+```bash
+docker run -v [volume-name]:/volume -v [backup-dir]:/backup --rm vbackup:1.0 remote -v -o "--remove-older-than 20B"
+```
+
+## Miscellaneous
+
+1. Find and pause all containers using a volume (to stop them before backing-up)
+
+```bash
+docker ps -a --filter volume=[volume-name] -q | while read x ; do docker pause $x ; done
+```
