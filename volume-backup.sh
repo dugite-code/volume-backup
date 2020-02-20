@@ -1,37 +1,51 @@
 #!/bin/sh
 
 usage() {
-  >&2 echo "Usage: volume-backup <backup|restore> [options] <archive or - for stdin/stdout>"
+  >&2 echo "Usage: vbackup <backup|restore|remote>"
   >&2 echo ""
   >&2 echo "Options:"
-  >&2 echo "  -c <algorithm> chooose compression algorithm: bz2 (default), gz, xz and 0 (none)"
-  >&2 echo "  -e <glob> exclude files or directories (only for backup operation)"
+  >&2 echo "  -o options"
   >&2 echo "  -v verbose"
 }
 
 backup() {
+    >&1 echo "Running Backup"
     if [ -z "$(ls -A /volume)" ]; then
        >&2 echo "Volume is empty or missing, check if you specified a correct name"
        exit 1
     fi
 
-    if ! [ "$ARCHIVE" == "-" ]; then
-        mkdir -p `dirname /backup/$ARCHIVE`
+    if [ ! -d "/backup" ]; then
+       >&2 echo "Backup is missing, check if you specified a correct name"
+       exit 1
     fi
 
-    tar -C /volume $TAROPTS -cf $ARCHIVE_PATH ./
+    rdiff-backup $RDIFFOPTS /volume /backup
 }
 
 restore() {
-    if ! [ "$ARCHIVE" == "-" ]; then
-        if ! [ -e $ARCHIVE_PATH ]; then
-            >&2 echo "Archive file $ARCHIVE does not exist"
-            exit 1
-        fi
+    if [ -z "$(ls -A /volume)" ]; then
+       >&2 echo "Volume is empty or missing, check if you specified a correct name"
+       exit 1
     fi
 
-    rm -rf /volume/* /volume/..?* /volume/.[!.]*
-    tar -C /volume/ $TAROPTS -xf $ARCHIVE_PATH
+    if [ -z "$(ls -A /backup)" ]; then
+       >&2 echo "Backup is empty or missing, check if you specified a correct name"
+       exit 1
+    fi
+
+    rdiff-backup $RDIFFOPTS /backup /volume
+
+}
+
+remote() {
+    if [ -z "$(ls -A /backup)" ]; then
+       >&2 echo "Backup is empty or missing, check if you specified a correct name"
+       exit 1
+    fi
+
+    rdiff-backup $RDIFFOPTS /backup
+
 }
 
 # Needed because sometimes pty is not ready when executing docker-compose run
@@ -41,74 +55,29 @@ sleep 1
 
 OPERATION=$1
 
-TAROPTS=""
-COMPRESSION="bz2"
+RDIFFOPTS=""
 
 OPTIND=2
 
-while getopts "h?vc:e:" OPTION; do
+while getopts "h?vo:" OPTION; do
     case "$OPTION" in
     h|\?)
         usage
         exit 0
         ;;
-    c)  
+    o)
         if [ -z "$OPTARG" ]; then
           usage
           exit 1
         fi
-        COMPRESSION=$OPTARG
-        ;;
-    e)  
-        if [ -z "$OPTARG" -o "$OPERATION" != "backup" ]; then
-          usage
-          exit 1
-        fi
-        TAROPTS="$TAROPTS --exclude $OPTARG"
+        RDIFFOPTS="$RDIFFOPTS $OPTARG"
         ;;
     v)
-        TAROPTS="$TAROPTS --checkpoint=.1000"
+        RDIFFOPTS="$RDIFFOPTS -v5"
         EOLN=1
         ;;
     esac
 done
-
-shift $((OPTIND - 1))
-
-if [ $# -lt 1 ]; then
-    usage
-    exit 1
-fi
-
-case "$COMPRESSION" in
-xz)
-      TAROPTS="$TAROPTS -J"
-      EXTENSION=.tar.xz
-      ;;
-bz2)
-      TAROPTS="$TAROPTS -j"
-      EXTENSION=.tar.bz2
-      ;;
-gz)
-      TAROPTS="$TAROPTS -z"
-      EXTENSION=.tar.gz
-      ;;
-none|0)
-      EXTENSION=.tar
-      ;;
-*)
-      usage
-      exit 1
-      ;;
-esac
-
-if [ "$1" == "-" ]; then
-    ARCHIVE=$1
-    ARCHIVE_PATH=$ARCHIVE
-else
-    ARCHIVE=${1%%$EXTENSION}$EXTENSION
-    ARCHIVE_PATH=/backup/$ARCHIVE
-fi
 
 case "$OPERATION" in
 "backup" )
@@ -116,6 +85,9 @@ backup
 ;;
 "restore" )
 restore
+;;
+"remote" )
+remote
 ;;
 * )
 usage
