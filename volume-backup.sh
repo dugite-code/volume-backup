@@ -8,7 +8,8 @@ usage() {
   >&2 echo 'Usage: vbackup <backup|restore|remote>'
   >&2 echo ''
   >&2 echo 'Options:'
-  >&2 echo '  -o "rdiff-backup options in quotes"'
+  >&2 echo '  -r rdiff-backup restore-as-of variable. Must be used with restore'
+  >&2 echo '  -t rdiff-backup remove-older-than variable. Must be used with remote'
   >&2 echo '  -v verbose'
 }
 
@@ -58,7 +59,7 @@ restore() {
 
     >&1 echo "Running Restore"
 
-    rdiff-backup $RDIFFOPTS /backup /volume
+    rdiff-backup $RESTOREOPTS /backup /volume
 
     >&1 echo -e "${GREEN}[DONE]${NC}"
 }
@@ -75,7 +76,7 @@ remote() {
 
     >&1 echo "Working on Remote"
 
-    rdiff-backup $RDIFFOPTS /backup
+    rdiff-backup $REMOVEOPTS /backup
 
     >&1 echo -e "${GREEN}[DONE]${NC}"
 }
@@ -91,18 +92,25 @@ RDIFFOPTS=""
 
 OPTIND=2
 
-while getopts "h?vo:" OPTION; do
+while getopts "h?vt:r:" OPTION; do
     case "$OPTION" in
     h|\?)
         usage
         exit 0
         ;;
-    o)
-        if [ -z "$OPTARG" ]; then
+    t)
+	if [ -z "$OPTARG" ] && ["$OPERATION" != "remote"]; then
+	  usage
+	  exit 1
+	fi
+	REMOVEOPTS=" --remove-older-than $OPTARG"
+	;;
+    r)
+        if [ -z "$OPTARG" ] && ["$OPERATION" != "restore"]; then
           usage
           exit 1
         fi
-        RDIFFOPTS="$RDIFFOPTS $OPTARG"
+        RESTOREOPTS=" --restore-as-of $OPTARG"
         ;;
     v)
         RDIFFOPTS="$RDIFFOPTS -v5"
@@ -116,16 +124,16 @@ case "$OPERATION" in
 backup
 ;;
 "restore" )
-if [[ -z $RDIFFOPTS ]]; then
-        >&2 echo -e "${RED}[ERROR]${NC} rdiff-backup options missing"
+if [[ -z $RESTOREOPTS ]]; then
+        >&2 echo -e "${RED}[ERROR]${NC} rdiff-backup restore-as-of variable missing"
 	usage
         exit 0
 fi
 restore
 ;;
 "remote" )
-if [[ -z $RDIFFOPTS ]]; then
-	>&2 echo -e "${RED}[ERROR]${NC} rdiff-backup options missing"
+if [[ -z $REMOVEOPTS ]]; then
+	>&2 echo -e "${RED}[ERROR]${NC} rdiff-backup remove-older-than variable missing"
         usage
         exit 0
 fi
