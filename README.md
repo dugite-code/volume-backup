@@ -34,7 +34,7 @@ docker run -v [volume-name]:/volume -v [backup-dir]:/backup --rm vbackup:1.0 rem
 docker ps -a --filter volume=[volume-name] -q | while read x ; do docker pause $x ; done
 ```
 
-1. Find and unpause all containers using a volume (to stop them before backing-up)
+1. Find and unpause all containers using a volume
 
 ```bash
 docker ps -a --filter volume=[volume-name] -q | while read x ; do docker unpause $x ; done
