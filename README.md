@@ -16,14 +16,18 @@ docker run -v [volume-name]:/volume -v [backup-dir]:/backup --rm vbackup:1.0 bac
 
 ## Restore
 
+`-r rdiff-backup restore-as-of variable. Must be used with restore`
+
 ```bash
-docker run -v [volume-name]:/volume -v [backup-dir]:/backup --rm vbackup:1.0 restore -o "-r 10D"
+docker run -v [volume-name]:/volume -v [backup-dir]:/backup --rm vbackup:1.0 restore -r 10D
 ```
 
 ## Remote (For removing old files in your backups)
 
+`-t rdiff-backup remove-older-than variable. Must be used with remote`
+
 ```bash
-docker run -v [volume-name]:/volume -v [backup-dir]:/backup --rm vbackup:1.0 remote -v -o "--remove-older-than 20B"
+docker run -v [volume-name]:/volume -v [backup-dir]:/backup --rm vbackup:1.0 remote -t 20B
 ```
 
 ## Miscellaneous
